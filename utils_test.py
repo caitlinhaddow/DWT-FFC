@@ -13,7 +13,7 @@ def to_psnr(frame_out, gt):
     rmse_list = np.sqrt(mse_list)  ##
     intensity_max = 1.0
     psnr_list = [10.0 * log10(intensity_max / mse) for mse in mse_list]
-    return psnr_list, rmse_list 
+    return psnr_list , rmse_list 
 
 def to_ssim_skimage(dehaze, gt):
     dehaze_list = torch.split(dehaze, 1, dim=0)
@@ -21,7 +21,7 @@ def to_ssim_skimage(dehaze, gt):
 
     dehaze_list_np = [dehaze_list[ind].permute(0, 2, 3, 1).data.cpu().numpy().squeeze() for ind in range(len(dehaze_list))]
     gt_list_np = [gt_list[ind].permute(0, 2, 3, 1).data.cpu().numpy().squeeze() for ind in range(len(dehaze_list))]
-    ssim_list = [ssim(dehaze_list_np[ind],  gt_list_np[ind], data_range=1, multichannel=True) for ind in range(len(dehaze_list))]
+    ssim_list = [ssim(dehaze_list_np[ind],  gt_list_np[ind], data_range=1, multichannel=True, channel_axis=2) for ind in range(len(dehaze_list))] ## CH added channel axis
 
     return ssim_list
 
