@@ -8,7 +8,9 @@ class dehaze_test_dataset(Dataset):
         self.transform = transforms.Compose([transforms.ToTensor()])
         self.list_test_hazy=[]
 
-        self.root_hazy=os.path.join(test_dir, 'hazy/')
+        # self.root_hazy=os.path.join(test_dir, 'hazy/')
+        self.root_hazy = test_dir  ## CH add
+
         for i in os.listdir(self.root_hazy):
            self.list_test_hazy.append(i)
         #self.root_hazy = os.path.join(test_dir)

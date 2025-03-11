@@ -1,3 +1,8 @@
+# CH Notes
+Testing
+- input images must be .png files
+- requires a GPU > 11gb. Found best results with 25gb
+
 # Breaking Through the Haze: An Advanced Non-Homogeneous Dehazing Method based on Fast Fourier Convolution and ConvNeXt 
 This is the official PyTorch implementation of our dehazing method based on the FFC and ConvNeXt.
 
