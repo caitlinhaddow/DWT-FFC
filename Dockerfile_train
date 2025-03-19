@@ -16,12 +16,20 @@ CMD ["bash", "-c", "python train.py"]
 # hare build -t ceh94/dwtffc_train .
 
 ## TO RUN IMAGE
-hare run --rm --gpus '"device=0,1"' --shm-size=128g \
---mount type=bind,source=/homes/ceh94/DWT-FFC/weights,target=/DWT-FFC/weights \
---mount type=bind,source=/homes/ceh94/DWT-FFC/output_result,target=/DWT-FFC/output_result \
---mount type=bind,source=/homes/ceh94/DWT-FFC/input_data,target=/DWT-FFC/input_data \
---mount type=bind,source=/mnt/faster0/ceh94/DWT-FFC/test_data,target=/DWT-FFC/test_data \
---mount type=bind,source=/mnt/faster0/ceh94/DWT-FFC/training_data,target=/DWT-FFC/training_data \
-ceh94/dwtffc_train
+# hare run --rm --gpus '"device=0,7"' --shm-size=128g \
+# --mount type=bind,source=/homes/ceh94/DWT-FFC/weights,target=/DWT-FFC/weights \
+# --mount type=bind,source=/homes/ceh94/DWT-FFC/output_result,target=/DWT-FFC/output_result \
+# --mount type=bind,source=/homes/ceh94/DWT-FFC/input_data,target=/DWT-FFC/input_data \
+# --mount type=bind,source=/mnt/faster0/ceh94/DWT-FFC/test_data,target=/DWT-FFC/test_data \
+# --mount type=bind,source=/mnt/faster0/ceh94/DWT-FFC/training_data,target=/DWT-FFC/training_data \
+# --mount type=bind,source=/mnt/faster0/ceh94/DWT-FFC/check_points,target=/DWT-FFC/check_points \
+# ceh94/dwtffc_train
 
 # docker system prune ## run every so often to clear out system
+
+# hare run --rm --gpus '"device=0,7"' --shm-size=128g \
+# --mount type=bind,source=/mnt/faster0/ceh94/DWT-FFC/weights,target=/DWT-FFC/weights \
+# --mount type=bind,source=/mnt/faster0/ceh94/DWT-FFC/test_data,target=/DWT-FFC/test_data \
+# --mount type=bind,source=/mnt/faster0/ceh94/DWT-FFC/training_data,target=/DWT-FFC/training_data \
+# --mount type=bind,source=/mnt/faster0/ceh94/DWT-FFC/check_points,target=/DWT-FFC/check_points \
+# ceh94/dwtffc_train

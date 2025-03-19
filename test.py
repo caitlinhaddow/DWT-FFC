@@ -100,42 +100,60 @@ for weight_file in list_weight_files:
 
   with torch.no_grad(): ########## ---- CH code ---- ##########
     start_time = time.time() ########## ---- CH code ---- ##########
-    for batch_idx, (hazy_up_left, hazy_up_middle, hazy_up_right, hazy_middle_left, hazy_middle_middle, hazy_middle_right, hazy_down_left, hazy_down_middle, hazy_down_right,name) in enumerate(tqdm(test_loader)):
-      torch.cuda.empty_cache() ########## ---- CH code ---- ##########  ## CHECK IF AFFECTS QUALITY
-      hazy_up_left = hazy_up_left.to(device)
-      hazy_up_middle = hazy_up_middle.to(device)
-      hazy_up_right = hazy_up_right.to(device)                
-      hazy_middle_left = hazy_middle_left.to(device)
-      hazy_middle_middle = hazy_middle_middle.to(device)
-      hazy_middle_right = hazy_middle_right.to(device)
 
-      hazy_down_left = hazy_down_left.to(device)
-      hazy_down_middle = hazy_down_middle.to(device)
-      hazy_down_right = hazy_down_right.to(device)
+    ########## ---- CH code: adjustment to allow smaller images ---- ##########
+    for batch_idx, image_sections in enumerate(tqdm(test_loader)):
+      if len(image_sections) == 2:
+         # Process whole image instead of cropping if image is exactly 1200x1600
+         hazy_up_left, name = image_sections
+         torch.cuda.empty_cache()
+         hazy_up_left = hazy_up_left.to(device)
+         frame_out_up_left = MyEnsembleNet(hazy_up_left)
+         frame_out_up_left = frame_out_up_left.to(device)
 
-      frame_out_up_left = MyEnsembleNet(hazy_up_left)
-      frame_out_middle_left = MyEnsembleNet(hazy_middle_left)
-      frame_out_down_left = MyEnsembleNet(hazy_down_left)
+      else:
+        hazy_up_left, hazy_up_middle, hazy_up_right, hazy_middle_left, hazy_middle_middle, hazy_middle_right, hazy_down_left, hazy_down_middle, hazy_down_right, name = image_sections
+      ############ End of adjustment CH code
 
-      frame_out_up_middle = MyEnsembleNet(hazy_up_middle)
-      frame_out_middle_middle = MyEnsembleNet(hazy_middle_middle)
-      frame_out_down_middle = MyEnsembleNet(hazy_down_middle)
+        torch.cuda.empty_cache() ########## ---- CH code ---- ##########  ## CHECK IF AFFECTS QUALITY
+        hazy_up_left = hazy_up_left.to(device)
+        hazy_up_middle = hazy_up_middle.to(device)
+        hazy_up_right = hazy_up_right.to(device)                
+        hazy_middle_left = hazy_middle_left.to(device)
+        hazy_middle_middle = hazy_middle_middle.to(device)
+        hazy_middle_right = hazy_middle_right.to(device)
 
-      frame_out_up_right = MyEnsembleNet(hazy_up_right)
-      frame_out_middle_right = MyEnsembleNet(hazy_middle_right)
-      frame_out_down_right = MyEnsembleNet(hazy_down_right)
+        hazy_down_left = hazy_down_left.to(device)
+        hazy_down_middle = hazy_down_middle.to(device)
+        hazy_down_right = hazy_down_right.to(device)
 
-      frame_out_up_left = frame_out_up_left.to(device)
-      frame_out_middle_left = frame_out_middle_left.to(device)
-      frame_out_down_left = frame_out_down_left.to(device)
-      frame_out_up_middle = frame_out_up_middle.to(device)
-      frame_out_middle_middle = frame_out_middle_middle.to(device)
-      frame_out_down_middle = frame_out_down_middle.to(device)
-      frame_out_up_right = frame_out_up_right.to(device)
-      frame_out_middle_right = frame_out_middle_right.to(device)
-      frame_out_down_right = frame_out_down_right.to(device)
+        frame_out_up_left = MyEnsembleNet(hazy_up_left)
+        frame_out_middle_left = MyEnsembleNet(hazy_middle_left)
+        frame_out_down_left = MyEnsembleNet(hazy_down_left)
 
-            
+        frame_out_up_middle = MyEnsembleNet(hazy_up_middle)
+        frame_out_middle_middle = MyEnsembleNet(hazy_middle_middle)
+        frame_out_down_middle = MyEnsembleNet(hazy_down_middle)
+
+        frame_out_up_right = MyEnsembleNet(hazy_up_right)
+        frame_out_middle_right = MyEnsembleNet(hazy_middle_right)
+        frame_out_down_right = MyEnsembleNet(hazy_down_right)
+
+        frame_out_up_left = frame_out_up_left.to(device)
+        frame_out_middle_left = frame_out_middle_left.to(device)
+        frame_out_down_left = frame_out_down_left.to(device)
+        frame_out_up_middle = frame_out_up_middle.to(device)
+        frame_out_middle_middle = frame_out_middle_middle.to(device)
+        frame_out_down_middle = frame_out_down_middle.to(device)
+        frame_out_up_right = frame_out_up_right.to(device)
+        frame_out_middle_right = frame_out_middle_right.to(device)
+        frame_out_down_right = frame_out_down_right.to(device)
+
+      
+      #### CH code
+      if frame_out_up_left.shape[2]==1200:
+         ## Note currently very inefficient, model processes image 9 times for no reason
+         frame_out = frame_out_up_left
 
       if frame_out_up_left.shape[2]==1600:
         frame_out_up_left_middle=(frame_out_up_left[:,:,:,1800:2432]+frame_out_up_middle[:,:,:,0:632])/2
@@ -176,6 +194,7 @@ for weight_file in list_weight_files:
 
         frame_out_right = (torch.cat([frame_out_up_right[:, :, 0:1200, 664:].permute(0, 2, 3, 1),frame_out_right_up_middle.permute(0, 2, 3, 1), frame_out_middle_right[:, :, 400:1200, 664:].permute(0, 2, 3, 1), frame_out_right_middle_down.permute(0, 2, 3, 1), frame_out_down_right[:, :, 400:, 664:].permute(0, 2, 3, 1)],1))
 
+        frame_out=torch.cat([frame_out_left, frame_out_leftmiddle, frame_out_middle, frame_out_middleright, frame_out_right],2).permute(0, 3, 1, 2)
 
               
               
@@ -226,7 +245,8 @@ for weight_file in list_weight_files:
 
             
             
-      frame_out=torch.cat([frame_out_left, frame_out_leftmiddle, frame_out_middle, frame_out_middleright, frame_out_right],2).permute(0, 3, 1, 2)
+        frame_out=torch.cat([frame_out_left, frame_out_leftmiddle, frame_out_middle, frame_out_middleright, frame_out_right],2).permute(0, 3, 1, 2)
+      # frame_out=torch.cat([frame_out_left, frame_out_leftmiddle, frame_out_middle, frame_out_middleright, frame_out_right],2).permute(0, 3, 1, 2)
       frame_out=frame_out.to(device)
           
       # fourth_channel=torch.ones([frame_out.shape[0],1,frame_out.shape[2],frame_out.shape[3]],device='cuda:1')
@@ -241,6 +261,6 @@ for weight_file in list_weight_files:
       ########## ---- Start of CH code: Output meaningful filenames ---- ##########
       imwrite(frame_out_rgba, os.path.join(output_dir, str(name[0])), range=(0, 1))
     
-      test_time = time.time() - start_time
-      print(f"Time taken: {test_time}")
+  test_time = time.time() - start_time
+  print(f"Time taken: {test_time}")
       ########## ---- End of CH code ---- ##########

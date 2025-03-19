@@ -25,7 +25,7 @@ from pytorch_msssim import msssim
 from perceptual import LossNetwork
 
 ######### ch added
-save_prefix = "DatasetName" ## SET VARIABLE WHEN TRAINING DATASET CHANGES
+save_prefix = "NHNH2RB10" ## SET VARIABLE WHEN TRAINING DATASET CHANGES
 script_start_time = datetime.datetime.now()
 print(f"--- Start time: {script_start_time.strftime('%Y-%m-%d_%H-%M-%S')} ---")
 torch.cuda.empty_cache()
@@ -89,37 +89,38 @@ G_optimizer = torch.optim.Adam(MyEnsembleNet.parameters(), lr=0.0001)
 scheduler_G = torch.optim.lr_scheduler.MultiStepLR(G_optimizer, milestones=[3000, 5000, 8000], gamma=0.5)
 D_optim = torch.optim.Adam(DNet.parameters(), lr=0.0001)
 scheduler_D = torch.optim.lr_scheduler.MultiStepLR(D_optim, milestones=[5000, 7000, 8000], gamma=0.5)
+
 # --- Load training data --- #
 dataset = dehaze_train_dataset(train_dataset)
-train_loader = DataLoader(dataset=dataset, batch_size=train_batch_size, num_workers=10)
-# train_loader = DataLoader(dataset=dataset, batch_size=train_batch_size, num_workers=10, persistent_workers=True) ## ch add
+train_loader = DataLoader(dataset=dataset, batch_size=train_batch_size, num_workers=10, pin_memory=True)  # CH change: pin memory to preload directly to GPU
+
 # --- Load testing data --- #
 test_dataset = dehaze_test_dataset(test_dataset)
-test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, num_workers=10)
-# test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, num_workers=10, persistent_workers=True) ## ch add
+test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, num_workers=10, pin_memory=True) # CH change: pin memory to preload directly to GPU
 MyEnsembleNet = MyEnsembleNet.to(device)
 DNet = DNet.to(device)
 writer = SummaryWriter()
+
 # --- Load the network weight --- #
 try:
     MyEnsembleNet.load_state_dict(torch.load(os.path.join(args.teacher_model, 'best.pkl')))  ## CHECK WHETHER I SHOULD BE CHANGING THIS
     print('--- weight loaded ---')
 except:
     print('--- no weight loaded ---')
+
 # --- Define the perceptual loss network --- #
-vgg_model = vgg16(pretrained=True)
-vgg_model = vgg_model.features[:16].to(device)
+vgg_model = vgg16(pretrained=True).features[:16].to(device)  ## CH change Moved VGG to device earlier
 for param in vgg_model.parameters():
     param.requires_grad = False
-loss_network = LossNetwork(vgg_model)
+loss_network = LossNetwork(vgg_model).to(device)  ## CH change: moved to same device as VGG
 loss_network.eval()
 msssim_loss = msssim
+
 # --- Strat training --- #
 print("strat training")
 iteration = 0
 best_psnr = 0
 for epoch in range(train_epoch):
-    torch.cuda.empty_cache() ## ch add
     start_time = time.time()
     scheduler_G.step()
     scheduler_D.step()
@@ -128,9 +129,12 @@ for epoch in range(train_epoch):
     
     for batch_idx, (hazy, clean) in enumerate(train_loader):
         iteration += 1
-        hazy = hazy.to(device)
-        clean = clean.to(device)
+        hazy = hazy.to(device) ## CH change: pin memory to preload directly to GPU
+        clean = clean.to(device) ## CH change: pin memory to preload directly to GPU
         output = MyEnsembleNet(hazy)
+
+        torch.cuda.empty_cache() ## CH change: free up memory after each batch
+
         DNet.zero_grad()
         real_out = DNet(clean).mean()
         fake_out = DNet(output).mean()
@@ -158,13 +162,15 @@ for epoch in range(train_epoch):
             ssim_list = []
             rmse_list = []
             MyEnsembleNet.eval()
-            for batch_idx, (hazy_up,hazy_down,hazy, clean) in enumerate(test_loader):
+            for batch_idx, (hazy_up, hazy_down, hazy, clean) in enumerate(test_loader):
                 hazy_up = hazy_up.to(device)
                 hazy_down=hazy_down.to(device)
                 clean = clean.to(device)
                 frame_out_up = MyEnsembleNet(hazy_up)
                 frame_out_down = MyEnsembleNet(hazy_down)
-                frame_out=(torch.cat([frame_out_up.permute(0,2,3,1), frame_out_down[:,:,80:640,:].permute(0,2,3,1)], 1)).permute(0,3,1,2)
+                # frame_out=(torch.cat([frame_out_up.permute(0,2,3,1), frame_out_down[:,:,80:640,:].permute(0,2,3,1)], 1)).permute(0,3,1,2)
+                frame_out = torch.cat([frame_out_up, frame_out_down[:, :, 80:640, :]], dim=2)  ## CH change: reduce number of permute calls
+
                 if not os.path.exists('output/'):
                     os.makedirs('output/')
                 imwrite(frame_out, 'output/' + str(batch_idx) + '.png', range=(0, 1))
@@ -183,13 +189,6 @@ for epoch in range(train_epoch):
             avr_rmse = sum(rmse_list) / len(rmse_list)
             writer.add_scalars('testing', {'testing psnr': avr_psnr, 'testing rmse': avr_rmse,
                                            'testing ssim': avr_ssim}, epoch)
-            ####### CH add - trying out removing rmse (function not in provided utils_test)
-            # avr_rmse = sum(rmse_list) / len(rmse_list)
-            # writer.add_scalars('testing', {'testing psnr': avr_psnr, 'testing rmse': avr_rmse,
-            #                                'testing ssim': avr_ssim}, epoch)
-            # writer.add_scalars('testing', {'testing psnr': avr_psnr, 'testing ssim': avr_ssim}, epoch)
-            ############
-
             if avr_psnr > best_psnr:
                 print(f"New best PSNR achieved: {avr_psnr}. Saving model...")
                 torch.save(MyEnsembleNet.state_dict(), os.path.join(args.model_save_dir, f"{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}_{save_prefix}_epoch{epoch:05d}.pkl"))

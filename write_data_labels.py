@@ -15,7 +15,7 @@ def write_file(txt_dir, description):
     print(f"{description} txt file done")
 
 
-dataset_dir = "/home/caitlinhaddow/Documents/Datasets/_NH2/"  ## SET VARIABLE
+dataset_dir = "/home/caitlinhaddow/Documents/Datasets/gamma_correction/gc_NHNH2RB10"  ## SET VARIABLE
 
 # Assumes file structure of dataset_dir > training_data AND test_data > hazy AND clean
 train_txt_dir = os.path.join(dataset_dir, "training_data/")
