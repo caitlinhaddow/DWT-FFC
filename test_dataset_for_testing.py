@@ -20,9 +20,9 @@ class dehaze_test_dataset(Dataset):
 
 
     def __getitem__(self, index, is_train=True):
-        hazy = Image.open(self.root_hazy + self.list_test_hazy[index]).convert('RGB')
+        hazy = Image.open(os.path.join(self.root_hazy, self.list_test_hazy[index])).convert('RGB')
         hazy = self.transform(hazy)
-        print(f"------ shape 1: {hazy.shape[1]}, shape 2: {hazy.shape[2]}")
+        # print(f"------ shape 1: {hazy.shape[1]}, shape 2: {hazy.shape[2]}")
 
         # If landscape
         if hazy.shape[1] < hazy.shape[2]:
