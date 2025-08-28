@@ -25,7 +25,7 @@ from perceptual import LossNetwork
 parser = argparse.ArgumentParser(description='DWT-FFC Dehaze')
 parser.add_argument('-learning_rate', help='Set the learning rate', default=1e-4, type=float)
 parser.add_argument('-train_batch_size', help='Set the training batch size', default=8, type=int)  ## originally 25, paper used 16
-parser.add_argument('-train_epoch', help='Set the training epoch', default=10005, type=int) ## paper used 10000 epochs
+parser.add_argument('-train_epoch', help='Set the training epoch', default=8005, type=int) ## paper used 10000 epochs
 parser.add_argument('--datasets', nargs='+', default=['NH_NH2', 'NH_NH2_RBm10']) ## ch add
 parser.add_argument('--data_dir', type=str, default='./input_training_data/')
 parser.add_argument('--model_save_dir', type=str, default='./check_points')
@@ -34,6 +34,9 @@ parser.add_argument('--log_dir', type=str, default=None)
 # parser.add_argument('--test_dataset', type=str, default='./test_data/')
 parser.add_argument('--predict_result', type=str, default='./output_result/')
 parser.add_argument('-test_batch_size', help='Set the testing batch size', default=1, type=int)
+parser.add_argument('--ckpt_path', default='', type=str, help='path to model to be loaded')
+parser.add_argument('--finetune', action='store_true', help='finetune phase')
+
 args = parser.parse_args()
 
 for dataset in args.datasets: ## ch add
@@ -101,11 +104,19 @@ for dataset in args.datasets: ## ch add
     writer = SummaryWriter()
 
     # --- Load the network weight --- #
-    try:
-        MyEnsembleNet.load_state_dict(torch.load(os.path.join(args.teacher_model, 'best.pkl')))  ## CHECK WHETHER I SHOULD BE CHANGING THIS
+    # finetune
+    if args.finetune:
+        # MyEnsembleNet.load_state_dict(torch.load(args.ckpt_path)['model_state_dict']) 
+        MyEnsembleNet.load_state_dict(torch.load(args.ckpt_path)) 
         print('--- weight loaded ---')
-    except:
+    else:
         print('--- no weight loaded ---')
+
+    # try:
+    #     MyEnsembleNet.load_state_dict(torch.load(os.path.join(args.teacher_model, 'best.pkl')))  ## CHECK WHETHER I SHOULD BE CHANGING THIS
+    #     print('--- weight loaded ---')
+    # except:
+    #     print('--- no weight loaded ---')
 
     # --- Define the perceptual loss network --- #
     vgg_model = vgg16(pretrained=True).features[:16].to(device)  ## CH change Moved VGG to device earlier
