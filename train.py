@@ -1,16 +1,13 @@
+## CH Dissertation: new file added as was missing from github. Adapted code from ITB-Dehaze (same authors), changed variables/schedules to match those described in paper. Memory management/efficiency changes, batch processing and single image processing changed in the same way as for ITB-Dehaze
+
 import torch
 import time
 import argparse
 import datetime
-
-######### ch added
 # from model import fusion_net, Discriminator
 from model_convnext import fusion_net, Discriminator
 from train_dataset import dehaze_train_dataset  ## added file from dwgan (originally from ITB-Dehaze)
-from test_val_dataset import dehaze_test_dataset # from test_dataset_for_testing import dehaze_test_dataset
-
-###########################
-
+from test_val_dataset import dehaze_test_dataset
 from torch.utils.data import DataLoader
 import os
 from utils_test import to_psnr, to_ssim_skimage ##, to_rmse
@@ -24,9 +21,9 @@ from perceptual import LossNetwork
 # --- Parse hyper-parameters train --- #
 parser = argparse.ArgumentParser(description='DWT-FFC Dehaze')
 parser.add_argument('-learning_rate', help='Set the learning rate', default=1e-4, type=float)
-parser.add_argument('-train_batch_size', help='Set the training batch size', default=8, type=int)  ## originally 25, paper used 16
-parser.add_argument('-train_epoch', help='Set the training epoch', default=8005, type=int) ## paper used 10000 epochs
-parser.add_argument('--datasets', nargs='+', default=['NH_NH2', 'NH_NH2_RBm10']) ## ch add
+parser.add_argument('-train_batch_size', help='Set the training batch size', default=8, type=int)
+parser.add_argument('-train_epoch', help='Set the training epoch', default=8005, type=int) ## paper used 10000 epochs but found to be unnecessary
+parser.add_argument('--datasets', nargs='+', default=['NH_NH2', 'NH_NH2_RBm10'])
 parser.add_argument('--data_dir', type=str, default='./input_training_data/')
 parser.add_argument('--model_save_dir', type=str, default='./check_points')
 parser.add_argument('--log_dir', type=str, default=None)
@@ -39,23 +36,23 @@ parser.add_argument('--finetune', action='store_true', help='finetune phase')
 
 args = parser.parse_args()
 
-for dataset in args.datasets: ## ch add
+for dataset in args.datasets:
     print(f"-- Testing on dataset {dataset}: --")
 
-    save_prefix = dataset ## ch add
+    save_prefix = dataset
     script_start_time = datetime.datetime.now()
     print(f"--- Start time: {script_start_time.strftime('%Y-%m-%d_%H-%M-%S')} ---")
-    torch.cuda.empty_cache() ## ch add
+    torch.cuda.empty_cache()
 
     # --- train --- #
     learning_rate = args.learning_rate
     train_batch_size = args.train_batch_size
     train_epoch = args.train_epoch
-    full_data_dir = os.path.join(args.data_dir, dataset)  ## ch add  
-    train_dataset = os.path.join(full_data_dir, "training_data") ## ch add
+    full_data_dir = os.path.join(args.data_dir, dataset)
+    train_dataset = os.path.join(full_data_dir, "training_data")
     
     # --- test --- #
-    test_dataset = os.path.join(full_data_dir, "test_data") ## ch add
+    test_dataset = os.path.join(full_data_dir, "test_data")
     predict_result = args.predict_result
     test_batch_size = args.test_batch_size
 
@@ -73,8 +70,7 @@ for dataset in args.datasets: ## ch add
     print('MyEnsembleNet parameters:', sum(param.numel() for param in MyEnsembleNet.parameters()))
     DNet = Discriminator()
 
-    ########### CH New code
-
+    ## CH Dissertation: fro testing setup with single GPU
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs")
         MyEnsembleNet = torch.nn.DataParallel(MyEnsembleNet, device_ids=device_ids).to(device)
@@ -84,8 +80,7 @@ for dataset in args.datasets: ## ch add
         MyEnsembleNet = MyEnsembleNet.to(device)
         DNet = DNet.to(device)
 
-    ###################
-
+    ## CH Dissertation: schedule implemented as in paper
     # --- Build optimizer --- #
     G_optimizer = torch.optim.Adam(MyEnsembleNet.parameters(), lr=0.0001)
     scheduler_G = torch.optim.lr_scheduler.MultiStepLR(G_optimizer, milestones=[3000, 5000, 8000], gamma=0.5)
@@ -94,11 +89,11 @@ for dataset in args.datasets: ## ch add
 
     # --- Load training data --- #
     dataset = dehaze_train_dataset(train_dataset)
-    train_loader = DataLoader(dataset=dataset, batch_size=train_batch_size, num_workers=4, pin_memory=True)  # CH change: pin memory to preload directly to GPU
+    train_loader = DataLoader(dataset=dataset, batch_size=train_batch_size, num_workers=4, pin_memory=True)  ## CH Dissertation: pin memory to preload directly to GPU
 
     # --- Load testing data --- #
     test_dataset = dehaze_test_dataset(test_dataset)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, num_workers=4, pin_memory=True) # CH change: pin memory to preload directly to GPU
+    test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, num_workers=4, pin_memory=True) ## CH Dissertation:  pin memory to preload directly to GPU
     MyEnsembleNet = MyEnsembleNet.to(device)
     DNet = DNet.to(device)
     writer = SummaryWriter()
@@ -139,12 +134,13 @@ for dataset in args.datasets: ## ch add
         
         for batch_idx, (hazy, clean) in enumerate(train_loader):
             iteration += 1
-            hazy = hazy.to(device) ## CH change: pin memory to preload directly to GPU
-            clean = clean.to(device) ## CH change: pin memory to preload directly to GPU
+            hazy = hazy.to(device) ## CH Dissertation: memory management
+            clean = clean.to(device) ## CH Dissertation: memory management
             output = MyEnsembleNet(hazy)
 
-            torch.cuda.empty_cache() ## CH change: free up memory after each batch
+            torch.cuda.empty_cache() ## CH Dissertation: free up memory after each batch
 
+            ## CH Dissertation: implemented as in paper
             DNet.zero_grad()
             real_out = DNet(clean).mean()
             fake_out = DNet(output).mean()
@@ -167,6 +163,8 @@ for dataset in args.datasets: ## ch add
                 'g_score': fake_out.item()}, iteration)
         if (epoch % 5 == 0):
             print('we are testing on epoch: ' + str(epoch))
+
+            ## CH Dissertation: necessary processing only for efficiency
             with torch.no_grad():
                 # psnr_list = []
                 # ssim_list = []
@@ -205,7 +203,9 @@ for dataset in args.datasets: ## ch add
                 #     best_psnr = avr_psnr
                 if epoch % 1000 == 0:
                     # print(f"{epoch} checkpoint. PSNR: {avr_psnr}. Saving model...")
+
+                    ## CH Dissertation: informative file names
                     torch.save(MyEnsembleNet.state_dict(), os.path.join(args.model_save_dir, f"{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}_{save_prefix}_epoch{epoch:05d}.pkl"))
         # print(f"Epoch {epoch}: {time.time()-start_time}")
     script_end_time = datetime.datetime.now()
-    print(f"Start time{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}, End time {script_end_time.strftime('%Y-%m-%d_%H-%M-%S')}, Total duration: {script_end_time - script_start_time}")
+    print(f"Start time{script_start_time.strftime('%Y-%m-%d_%H-%M-%S')}, End time {script_end_time.strftime('%Y-%m-%d_%H-%M-%S')}, Total duration: {script_end_time - script_start_time}") ## CH Dissertation: informative file names

@@ -9,7 +9,7 @@ class dehaze_test_dataset(Dataset):
         self.list_test_hazy=[]
 
         # self.root_hazy = os.path.join(test_dir, 'hazy/')
-        self.root_hazy = test_dir  ## CH add
+        self.root_hazy = test_dir  ## CH Dissertation:  match file structure
 
         for i in os.listdir(self.root_hazy):
            self.list_test_hazy.append(i)
@@ -20,14 +20,14 @@ class dehaze_test_dataset(Dataset):
 
 
     def __getitem__(self, index, is_train=True):
-        hazy = Image.open(os.path.join(self.root_hazy, self.list_test_hazy[index])).convert('RGB')
+        hazy = Image.open(os.path.join(self.root_hazy, self.list_test_hazy[index])).convert('RGB')  ## CH Dissertation: ensure images processed in correct format
         hazy = self.transform(hazy)
         # print(f"------ shape 1: {hazy.shape[1]}, shape 2: {hazy.shape[2]}")
 
+        ## CH Dissertation: adjustment to allow smaller images
         # If landscape
         if hazy.shape[1] < hazy.shape[2]:
             # print(f"landscape: {hazy.shape}")
-
             if hazy.shape[1] == 4000 and hazy.shape[2] == 6000:
                 # Original sizings
                 hazy_up_left=hazy[:,0:1600, 0:2432]
@@ -43,17 +43,15 @@ class dehaze_test_dataset(Dataset):
                 hazy_down_right=hazy[:,2400:4000, 3568:6000]
 
                 name = self.list_test_hazy[index]
-
             elif hazy.shape[1] == 1200 and hazy.shape[2] == 1600:
-                ## ---------- CH code: Do not segment image for 1200x1600 -----------
+                ## CH Dissertation: adjustment to allow smaller images
                 hazy_up_left = hazy[:,:,:]
                 name = self.list_test_hazy[index]
-
                 return hazy_up_left, name
-
             else:
                 print("Unexpected image size")
 
+        ## CH Dissertation: adjustment to allow smaller images
         # If portrait
         if hazy.shape[1] > hazy.shape[2]:
             # print("portrait")

@@ -1,8 +1,28 @@
-# CH Notes
-Testing
-- input images must be .png files
-- requires a GPU > 11gb. Found best results with 25gb
+## Dissertation-Specific README
 
+### Run instructions
+**Initial Setup**
+
+Input images must be .png files.
+Best results with two 25GB GPUs
+Download and place convnext_xlarge_22k_1k_384_ema.pth in weights folder
+
+**Train**
+
+**Test**
+
+### My notes/Changes made to official implementation
+* New files added: Dockerfile, run_test.py, run_train.py, train.py, test_val_dataset.py, train_dataset.py, environment.yml, .dockerignore, .gitignore
+* Significant changes are made to test.py, train.py, test_dataset_for_testing.py
+* Minor changes are made to model_convnext.py, utils_test.py
+
+* Training code was not provided in the official github, but recreated by adapting files from ITB-Dehaze based on descriptions in the orginal paper. ITB-Dehaze shares authors as was created with the same basic structure for the same hardware.
+* Original code required 6000x4000 images while were cropped and tiled. Changed to process a single 1200x1600 image.
+* Added a Dockerfile and bash scripts to for training and testing
+* Added batch processing for testing and training (multiple datasets/weights)
+* Added pin_memory and num_works to data loaders to increase speed
+
+## Original README File:
 # Breaking Through the Haze: An Advanced Non-Homogeneous Dehazing Method based on Fast Fourier Convolution and ConvNeXt 
 This is the official PyTorch implementation of our dehazing method based on the FFC and ConvNeXt.
 

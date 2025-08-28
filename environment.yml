@@ -1,3 +1,6 @@
+## CH Dissertation: New File added
+## Not the primary method used for creating the code environment. Print of working conda environment for reference.
+
 name: venv_dwtffc_22
 channels:
   - pytorch

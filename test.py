@@ -1,21 +1,24 @@
+## CH Dissertation: No longer used imports and hyper-parameters are commented out for efficiency, but left in the code for awareness and easier future adaptation for high resolution images
+## Cropping and tiling code is removed
+
 # External imports
 import torch
 import argparse
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image as imwrite
+from collections import OrderedDict
 import os
 import time
 # import re
 # from torchvision import transforms
-from collections import OrderedDict ## ch add
-from tqdm import tqdm ## ch add
+from tqdm import tqdm ## CH Dissertation: added loading bars
 
 # Internal imports
 from test_dataset_for_testing import dehaze_test_dataset
 from model_convnext import fusion_net
 
-## ch add
+## CH Dissertation: function to prevent errors from variation between weights files
 def normalize_state_dict(state_dict):
     """" Remove .module prefixes """
     new_state_dict = OrderedDict()
@@ -27,42 +30,36 @@ def normalize_state_dict(state_dict):
 
 parser = argparse.ArgumentParser(description='Dehaze')
 parser.add_argument('--test_dir', type=str, default='./input_data/')
-parser.add_argument('--datasets', nargs='+', default=['Test'])  ## ch add
+parser.add_argument('--datasets', nargs='+', default=['Test'])  ## CH Dissertation: for batch processing multiple datasets
 parser.add_argument('--output_dir', type=str, default='./output_result/')
 parser.add_argument('-test_batch_size', help='Set the testing batch size', default=1, type=int)
-parser.add_argument('--weights', nargs='+', default=['validation_best.pkl'], help='List of weight file names as strings') ## ch add
+parser.add_argument('--weights', nargs='+', default=['validation_best.pkl'], help='List of weight file names as strings') ## CH Dissertation: for batch processing multiple weights
 
 args = parser.parse_args()
 
 output_dir = args.output_dir
 if not os.path.exists(output_dir + '/'):
     os.makedirs(output_dir + '/', exist_ok=True)
-test_batch_size = args.test_batch_size  ## ch add
 
+
+## CH Dissertation: batch processing added
+test_batch_size = args.test_batch_size  ## ch add
 for dataset in args.datasets:
   print(f"-- Testing on dataset {dataset}: --")
-  test_data_dir = os.path.join(args.test_dir, dataset)  ## ch add  
-  list_weight_files = args.weights ## ch add
-
+  test_data_dir = os.path.join(args.test_dir, dataset)
+  list_weight_files = args.weights
   test_dataset = dehaze_test_dataset(test_data_dir)
-  test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, shuffle=False, pin_memory=True, num_workers=2)
-  tested_on = dataset ## ch add
+  test_loader = DataLoader(dataset=test_dataset, batch_size=test_batch_size, shuffle=False, pin_memory=True, num_workers=2) ## CH Dissertation: added pin memory and num workers
+  tested_on = dataset
 
-  ########## ---- Start of CH code: Run tests for multiples weights ---- ##########
-  # list_weight_files = ["./weights/validation_best.pkl"]   ## original weights
-  # list_weight_files = ["2025-03-14_09-43-28_NHNH2_epoch01000.pkl", "2025-03-17_13-42-19_NHNH2RB10_epoch01000.pkl"]  ## SET VARIABLE
-
+  ## CH Dissertation: batch processing added
   for weight_file in list_weight_files:
     print(f"Testing with weights from {weight_file}")
     weight_name = os.path.splitext(os.path.basename(weight_file))[0]
     final_output_dir = os.path.join(output_dir, f"{tested_on}_{weight_name}")  # save each set of images in a new directory with the weight name
-
     weight_file = os.path.join("./weights", weight_file)
-    ########## ---- End of CH code ---- ##########
-
-    multiple_gpus = True  ## SET VARIABLE (Code by Caitlin)
+    multiple_gpus = True
     
-    # print(f"------- starting ---------")
     if multiple_gpus:
       # --- Gpu device --- #
       device_ids = [Id for Id in range(torch.cuda.device_count())]
@@ -76,11 +73,11 @@ for dataset in args.datasets:
       # --- Multi-GPU --- #
       MyEnsembleNet = MyEnsembleNet.to(device)
 
-      ########## ---- Start of CH code: To use given pkl file with parallel GPUs ---- ##########
       # Load checkpoint first, without wrapping in DataParallel
-      checkpoint = torch.load(weight_file, map_location=device)
+      checkpoint = torch.load(weight_file, map_location=device)  ## CH Dissertation: prevent errors from variation between weights files
       print(f"Using weights from: {weight_file}")
       
+      ## CH Dissertation: prevent errors from variation between weights files
       if "model_state_dict" in checkpoint:
         print(f"found model state dict")
         state_dict = checkpoint["model_state_dict"]  # Extract the actual state dict
@@ -90,20 +87,16 @@ for dataset in args.datasets:
       else:
         state_dict = checkpoint  # Direct state_dict case
         print(f"no model state dict")
-
       # Remove "module." prefix if it exists
       new_state_dict = normalize_state_dict(state_dict)
-
       # Load state dict into model
       MyEnsembleNet.load_state_dict(new_state_dict)
-
       # Now wrap in DataParallel
       MyEnsembleNet = nn.DataParallel(MyEnsembleNet, device_ids=device_ids)
-      MyEnsembleNet = MyEnsembleNet.to(device) ## ch add  ## CHECK - MIGHT BE REMOVABLE NOW
-      ########## ---- End of CH code ---- ##########
-      # MyEnsembleNet.load_state_dict(torch.load(weight_file), strict=True)
+      MyEnsembleNet = MyEnsembleNet.to(device)
+
     else:
-      ########## ---- Start of CH code: To get around parallel GPU requirement ---- ##########
+      ## CH Dissertation: for testing on single GPUs
       # Load checkpoint
       print("Using single GPU only")
       device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -122,12 +115,12 @@ for dataset in args.datasets:
 
       # Load state dict into model
       MyEnsembleNet.load_state_dict(new_state_dict)
-      ########## ---- End of CH code ---- ##########
 
-    with torch.no_grad(): ########## ---- CH code ---- ##########
-      start_time = time.time() ########## ---- CH code ---- ##########
 
-      ########## ---- CH code: adjustment to allow smaller images ---- ##########
+    with torch.no_grad(): ## CH Dissertation: memory management, increased efficiency
+      start_time = time.time() ## CH Dissertation: user information
+
+      ## CH Dissertation: adjustment to allow smaller images
       for batch_idx, image_sections in enumerate(tqdm(test_loader)):
         if len(image_sections) == 2:
           # Process whole image instead of cropping if image is exactly 1200x1600
@@ -136,12 +129,10 @@ for dataset in args.datasets:
           hazy_up_left = hazy_up_left.to(device)
           frame_out_up_left = MyEnsembleNet(hazy_up_left)
           frame_out_up_left = frame_out_up_left.to(device)
-
         else:
           hazy_up_left, hazy_up_middle, hazy_up_right, hazy_middle_left, hazy_middle_middle, hazy_middle_right, hazy_down_left, hazy_down_middle, hazy_down_right, name = image_sections
-        ############ End of adjustment CH code
 
-          torch.cuda.empty_cache() ########## ---- CH code ---- ##########  ## CHECK IF AFFECTS QUALITY
+          torch.cuda.empty_cache() ## CH Dissertation: memory management
           hazy_up_left = hazy_up_left.to(device)
           hazy_up_middle = hazy_up_middle.to(device)
           hazy_up_right = hazy_up_right.to(device)                
@@ -176,9 +167,8 @@ for dataset in args.datasets:
           frame_out_down_right = frame_out_down_right.to(device)
 
         
-        #### CH code
+        ## CH Dissertation: adjustment to allow smaller images
         if frame_out_up_left.shape[2]==1200:
-          ## Note currently very inefficient, model processes image 9 times for no reason
           frame_out = frame_out_up_left
 
         if frame_out_up_left.shape[2]==1600:
@@ -284,12 +274,11 @@ for dataset in args.datasets:
         # name= re.findall("\d+",str(name))
         # imwrite(frame_out_rgba, output_dir + '/' + str(name[0])+'.png', range=(0, 1))
 
-        ########## ---- Start of CH code: Output meaningful filenames ---- ##########
+        ## CH Dissertation: informative file names
         if not os.path.exists(final_output_dir + '/'):
                   os.makedirs(final_output_dir + '/')
-        
         imwrite(frame_out_rgba, os.path.join(final_output_dir, str(name[0])), range=(0, 1))
-      
+    
+    ## CH Dissertation: user information
     test_time = time.time() - start_time
     print(f"\n-Time taken: {test_time}-")
-        ########## ---- End of CH code ---- ##########

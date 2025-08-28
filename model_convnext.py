@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from timm.models.layers import trunc_normal_, DropPath
-# from timm.layers import trunc_normal_, DropPath ## CH add
+# from timm.layers import trunc_normal_, DropPath
 # from timm.models.registry import register_model
-from timm.models import register_model ## CH add
+from timm.models import register_model ## CH Dissertation: minor change to support package version
 
 
 #import Convnext as PreConv

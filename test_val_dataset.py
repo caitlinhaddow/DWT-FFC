@@ -1,3 +1,5 @@
+## CH Dissertation: new file added as was referenced but missing from official github. Processing of test images.
+
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms

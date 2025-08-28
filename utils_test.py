@@ -21,7 +21,8 @@ def to_ssim_skimage(dehaze, gt):
 
     dehaze_list_np = [dehaze_list[ind].permute(0, 2, 3, 1).data.cpu().numpy().squeeze() for ind in range(len(dehaze_list))]
     gt_list_np = [gt_list[ind].permute(0, 2, 3, 1).data.cpu().numpy().squeeze() for ind in range(len(dehaze_list))]
-    ssim_list = [ssim(dehaze_list_np[ind],  gt_list_np[ind], data_range=1, multichannel=True, channel_axis=2) for ind in range(len(dehaze_list))] ## CH added channel axis
+    ## CH Dissertation: channel axis required for package versions:
+    ssim_list = [ssim(dehaze_list_np[ind],  gt_list_np[ind], data_range=1, multichannel=True, channel_axis=2) for ind in range(len(dehaze_list))]
 
     return ssim_list
 
